@@ -1,1 +1,174 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Cagville - Numbers</title>
+    <style>
+        * { box-sizing: border-box; }
 
+        html, body {
+            height: 100%;
+            margin: 0;
+            overflow: hidden; /* the page never scrolls */
+        }
+
+        body {
+            display: flex;
+            flex-direction: column;
+            background: #0f172a;
+            color: #f8fafc;
+            font-family: sans-serif;
+        }
+
+        /* ---------- Top bar (same as home page) ---------- */
+        .topbar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 16px;
+            padding: 12px 24px;
+            background: #000;
+            border-bottom: 1px solid #1e293b;
+            position: relative;
+            z-index: 1;
+        }
+
+        .brand {
+            color: #f8fafc;
+            font-size: 1.25rem;
+            font-weight: 800;
+            letter-spacing: 0.04em;
+            text-decoration: none;
+            white-space: nowrap;
+        }
+
+        .nav {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: flex-end;
+            gap: 4px;
+        }
+
+        .nav a {
+            color: #94a3b8;
+            font-size: 0.9rem;
+            text-decoration: none;
+            padding: 6px 12px;
+            border-radius: 6px;
+        }
+
+        .nav a:hover,
+        .nav a:focus-visible {
+            color: #f8fafc;
+            background: #1e293b;
+        }
+
+        .nav a[aria-current="page"] {
+            color: #38bdf8;
+        }
+
+        /* ---------- Number wall ---------- */
+        #wall {
+            flex: 1;
+            min-height: 0;
+            overflow: hidden;
+            position: relative;
+        }
+
+        #digits {
+            position: absolute;
+            inset: 0;
+            margin: 0;
+            font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+            font-size: 18px;
+            line-height: 1.2;
+            color: #38bdf8;
+            opacity: 0.8;
+            white-space: pre;
+            overflow: hidden;
+            user-select: none;
+        }
+
+        /* hidden element used to measure one character */
+        #probe {
+            position: absolute;
+            visibility: hidden;
+            font: inherit;
+            white-space: pre;
+        }
+
+        @media (max-width: 600px) {
+            .topbar { flex-direction: column; align-items: flex-start; }
+            .nav { justify-content: flex-start; }
+        }
+    </style>
+</head>
+<body>
+    <header class="topbar">
+        <a class="brand" href="/">CAGVILLE</a>
+        <nav class="nav">
+            <a href="#">PLACEHOLDER1</a>
+            <a href="numbers.html" aria-current="page">NUMBERS</a>
+            <a href="#">PLACEHOLDER3</a>
+            <a href="#">PLACEHOLDER4</a>
+            <a href="#">PLACEHOLDER5</a>
+        </nav>
+    </header>
+
+    <div id="wall">
+        <pre id="digits" aria-hidden="true"></pre>
+        <span id="probe">0</span>
+    </div>
+
+    <script>
+        const wall = document.getElementById('wall');
+        const out = document.getElementById('digits');
+        const probe = document.getElementById('probe');
+
+        const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+        const TICK_MS = reduceMotion ? 1000 : 60;   // how often numbers change
+        const CHURN = reduceMotion ? 0.02 : 0.06;   // fraction of digits changed per tick
+
+        let cols = 0, rows = 0, cells = [];
+
+        const digit = () => (Math.random() * 10) | 0;
+
+        function build() {
+            const style = getComputedStyle(out);
+            probe.style.fontSize = style.fontSize;
+            probe.style.lineHeight = style.lineHeight;
+            const r = probe.getBoundingClientRect();
+            cols = Math.ceil(wall.clientWidth / r.width);
+            rows = Math.ceil(wall.clientHeight / r.height);
+            cells = Array.from({ length: cols * rows }, digit);
+        }
+
+        function render() {
+            let s = '';
+            for (let y = 0; y < rows; y++) {
+                s += cells.slice(y * cols, (y + 1) * cols).join('') + '\n';
+            }
+            out.textContent = s;
+        }
+
+        function tick() {
+            const n = Math.ceil(cells.length * CHURN);
+            for (let i = 0; i < n; i++) {
+                cells[(Math.random() * cells.length) | 0] = digit();
+            }
+            render();
+        }
+
+        build();
+        render();
+        setInterval(tick, TICK_MS);
+
+        let resizeTimer;
+        window.addEventListener('resize', () => {
+            clearTimeout(resizeTimer);
+            resizeTimer = setTimeout(() => { build(); render(); }, 100);
+        });
+    </script>
+</body>
+</html>
