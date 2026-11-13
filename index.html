@@ -18,7 +18,6 @@
             font-family: sans-serif;
         }
 
-
         .topbar {
             display: flex;
             align-items: center;
@@ -59,7 +58,6 @@
             background: #1e293b;
         }
 
-
         main {
             flex: 1;
             display: flex;
@@ -75,10 +73,96 @@
             margin: 0 0 10px;
         }
 
-        p {
+        #msg {
             color: #94a3b8;
             font-size: 1.2rem;
             margin: 0;
+            max-width: 90vw;
+            line-height: 1.5;
+            user-select: none;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        #msg.idle {
+            cursor: pointer;
+            transition: color 0.2s;
+        }
+
+        #msg.idle:hover {
+            color: #e2e8f0;
+        }
+
+        #msg:focus-visible {
+            outline: 2px solid #38bdf8;
+            outline-offset: 6px;
+            border-radius: 4px;
+        }
+
+        .word {
+            display: inline-block;
+            white-space: nowrap;
+        }
+
+        .ch {
+            display: inline-block;
+        }
+
+        .red   { --h: 0;   --s: 85%; --o: 4%; }
+        .green { --h: 135; --s: 60%; --o: -2%; }
+
+        .lit .ch {
+            color: hsl(var(--h) var(--s) calc(var(--l) + var(--o)));
+            text-shadow:
+                0 0 calc(var(--g) * 6px) hsl(var(--h) 90% 55% / var(--g)),
+                0 0 calc(var(--g) * 18px) hsl(var(--h) 90% 55% / calc(var(--g) * 0.7));
+            transition: color 0.5s, text-shadow 0.5s;
+        }
+
+        .out .ch {
+            color: hsl(var(--h) 14% 32%);
+            text-shadow: none;
+            transition: color 1.2s;
+        }
+
+        .fall {
+            animation: fall 0.9s ease-in forwards;
+        }
+
+        .rise {
+            animation: rise 0.5s ease-out both;
+        }
+
+        .flicker {
+            animation: flicker 1.3s linear;
+        }
+
+        @keyframes fall {
+            to {
+                transform: translate(var(--dx), var(--dy)) rotate(var(--r));
+                opacity: 0;
+            }
+        }
+
+        @keyframes rise {
+            from {
+                opacity: 0;
+                transform: translateY(-24px) scale(1.4);
+            }
+        }
+
+        @keyframes flicker {
+            0%   { opacity: 1; }
+            10%  { opacity: 0.3; }
+            20%  { opacity: 1; }
+            30%  { opacity: 0.2; }
+            45%  { opacity: 0.9; }
+            55%  { opacity: 0.25; }
+            70%  { opacity: 0.8; }
+            100% { opacity: 1; }
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+            .fall, .rise, .flicker { animation: none; }
         }
 
         @media (max-width: 600px) {
@@ -102,7 +186,122 @@
 
     <main>
         <h1>Cagville</h1>
-        <p>Something great is on the way. Check back soon.</p>
+        <p id="msg" class="idle" role="button" tabindex="0">Something great is on the way. Check back soon.</p>
     </main>
+
+    <script>
+        const el = document.getElementById('msg');
+        const OLD_TEXT = el.textContent.trim();
+        const NEW_TEXT = 'We Wish you a merry Cagmas and a happy LarpYear';
+        const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+        const MAX_CLICKS = 10;
+
+        let clicks = 0;
+        let busy = false;
+
+        function build(text, colored) {
+            el.textContent = '';
+            const words = text.split(' ');
+            let index = 0;
+            words.forEach((word, i) => {
+                const w = document.createElement('span');
+                w.className = 'word';
+                for (const letter of word) {
+                    const c = document.createElement('span');
+                    c.className = 'ch';
+                    if (colored) c.classList.add(index % 2 === 0 ? 'red' : 'green');
+                    c.textContent = letter;
+                    w.append(c);
+                    index++;
+                }
+                el.append(w);
+                if (i < words.length - 1) el.append(' ');
+            });
+            el.setAttribute('aria-label', text);
+            return [...el.querySelectorAll('.ch')];
+        }
+
+        function setLevel(step) {
+            const t = step / 8;
+            el.style.setProperty('--l', (34 + t * 30) + '%');
+            el.style.setProperty('--g', (0.25 + t * 0.75).toFixed(2));
+        }
+
+        function rand(min, max) {
+            return min + Math.random() * (max - min);
+        }
+
+        function showNewText() {
+            const chars = build(NEW_TEXT, true);
+            el.classList.add('lit');
+            setLevel(0);
+            if (reduceMotion) {
+                busy = false;
+                return;
+            }
+            chars.forEach((c, i) => {
+                c.style.animationDelay = (i * 35) + 'ms';
+                c.classList.add('rise');
+            });
+            setTimeout(() => { busy = false; }, chars.length * 35 + 500);
+        }
+
+        function crumble() {
+            busy = true;
+            el.classList.remove('idle');
+            if (reduceMotion) {
+                showNewText();
+                return;
+            }
+            const chars = build(OLD_TEXT, false);
+            chars.forEach(c => {
+                c.style.setProperty('--dx', rand(-40, 40) + 'px');
+                c.style.setProperty('--dy', rand(80, 200) + 'px');
+                c.style.setProperty('--r', rand(-90, 90) + 'deg');
+                c.style.animationDelay = rand(0, 500) + 'ms';
+                c.classList.add('fall');
+            });
+            setTimeout(showNewText, 1450);
+        }
+
+        function goOut() {
+            busy = true;
+            el.removeAttribute('role');
+            el.removeAttribute('tabindex');
+            el.style.cursor = 'default';
+            el.style.setProperty('--g', 0);
+            if (reduceMotion) {
+                el.classList.remove('lit');
+                el.classList.add('out');
+                busy = false;
+                return;
+            }
+            el.classList.add('flicker');
+            setTimeout(() => {
+                el.classList.remove('lit');
+                el.classList.add('out');
+            }, 650);
+            setTimeout(() => {
+                el.classList.remove('flicker');
+                busy = false;
+            }, 1300);
+        }
+
+        function handleClick() {
+            if (busy || clicks >= MAX_CLICKS) return;
+            clicks++;
+            if (clicks === 1) crumble();
+            else if (clicks < MAX_CLICKS) setLevel(clicks - 1);
+            else goOut();
+        }
+
+        el.addEventListener('click', handleClick);
+        el.addEventListener('keydown', e => {
+            if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                handleClick();
+            }
+        });
+    </script>
 </body>
 </html>
